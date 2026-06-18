@@ -1,0 +1,13 @@
+Vehicle VH001 Maintenance Schedule
+
+Make: Tesla Model 3
+Last Service: 2025-11-15
+Next Service Due: 2026-05-15
+Mileage: 24,500
+
+Recommended Services:
+- Tire rotation
+- Cabin air filter replacement
+- Brake fluid check
+
+Contact fleet manager for scheduling.

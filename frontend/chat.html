@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Security Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #0f1419;
+            --surface: #1a2332;
+            --border: #2d3a4f;
+            --text: #e8edf5;
+            --muted: #8b9cb8;
+            --primary: #3b82f6;
+            --safe: #22c55e;
+            --danger: #ef4444;
+            --spark: #f97316;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            flex-shrink: 0;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--surface);
+        }
+        .brand h1 { font-size: 1.1rem; }
+        .brand p { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+        .header-btns { display: flex; gap: 0.5rem; }
+        .btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.45rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-decoration: none;
+            font-family: inherit;
+        }
+        .btn:hover { border-color: var(--primary); color: var(--primary); }
+        .btn.primary { background: var(--primary); border-color: var(--primary); color: white; }
+        .btn.primary:hover { opacity: 0.9; }
+
+        .layout {
+            flex: 1;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 1fr 260px;
+            overflow: hidden;
+        }
+        .chat-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+        .messages {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            overscroll-behavior: contain;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .welcome { text-align: center; padding: 2rem 1rem; color: var(--muted); }
+        .welcome h2 { color: var(--text); font-size: 1.2rem; margin-bottom: 0.5rem; }
+        .examples { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 1.25rem; }
+        .example-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.45rem 0.7rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .example-btn:hover { border-color: var(--primary); }
+        .example-btn.attack { border-color: rgba(239,68,68,0.5); color: #fca5a5; }
+
+        .msg { max-width: 90%; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .msg.user { align-self: flex-end; }
+        .msg.bot { align-self: flex-start; width: 100%; max-width: 100%; }
+        .bubble { padding: 0.85rem 1rem; border-radius: 12px; font-size: 0.9rem; line-height: 1.5; }
+        .msg.user .bubble { background: var(--primary); color: white; }
+        .msg.bot .bubble { background: var(--surface); border: 1px solid var(--border); }
+
+        .pipeline-box {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            background: #0a0e14;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+        }
+        .pipeline-box h4 { color: var(--spark); font-size: 0.7rem; margin-bottom: 0.6rem; letter-spacing: 0.05em; }
+        .pipe-step {
+            padding: 0.35rem 0;
+            border-left: 2px solid var(--border);
+            padding-left: 0.6rem;
+            margin-left: 0.25rem;
+            opacity: 0.35;
+            transition: all 0.5s;
+        }
+        .pipe-step.active { opacity: 1; border-left-color: var(--primary); }
+        .pipe-step.done.success { opacity: 1; border-left-color: var(--safe); }
+        .pipe-step.done.danger { opacity: 1; border-left-color: var(--danger); }
+        .pipe-step.done.warning { opacity: 1; border-left-color: var(--spark); }
+        .pipe-step.done.blocked { opacity: 1; border-left-color: var(--danger); }
+        .pipe-name { font-weight: 600; color: var(--text); }
+        .pipe-detail { color: var(--muted); margin-top: 0.15rem; font-size: 0.68rem; }
+
+        .verdict {
+            display: inline-block;
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        .verdict.safe { background: rgba(34,197,94,0.15); color: var(--safe); }
+        .verdict.danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+        .details dt { font-weight: 600; margin-top: 0.4rem; font-size: 0.8rem; }
+        .details dd { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; margin-left: 0; }
+        .llm-answer { margin-top: 0.75rem; padding: 0.75rem; background: rgba(34,197,94,0.08); border-left: 3px solid var(--safe); border-radius: 0 8px 8px 0; }
+        .security-report { margin-top: 0.75rem; padding: 0.75rem; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; background: rgba(239,68,68,0.05); }
+        .security-report h4 { color: var(--danger); font-size: 0.85rem; margin-bottom: 0.5rem; }
+        .score-bar { height: 6px; background: var(--border); border-radius: 3px; margin: 0.4rem 0; }
+        .score-bar-fill { height: 100%; background: var(--danger); border-radius: 3px; }
+
+        .input-area {
+            flex-shrink: 0;
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 0.5rem;
+            background: var(--surface);
+        }
+        .input-area input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+            font-family: inherit;
+        }
+        .input-area input:focus { border-color: var(--primary); }
+        .input-area button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 1.25rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .input-area button:disabled { opacity: 0.5; }
+
+        .messages::-webkit-scrollbar,
+        .sidebar::-webkit-scrollbar,
+        .modal::-webkit-scrollbar {
+            width: 10px;
+        }
+        .messages::-webkit-scrollbar-track,
+        .sidebar::-webkit-scrollbar-track,
+        .modal::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+        .messages::-webkit-scrollbar-thumb,
+        .sidebar::-webkit-scrollbar-thumb,
+        .modal::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 5px;
+        }
+        .messages::-webkit-scrollbar-thumb:hover,
+        .sidebar::-webkit-scrollbar-thumb:hover,
+        .modal::-webkit-scrollbar-thumb:hover {
+            background: var(--muted);
+        }
+
+        .sidebar {
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            overscroll-behavior: contain;
+            padding: 1rem;
+            background: var(--surface);
+        }
+        .sidebar h3 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.75rem; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem; }
+        .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; text-align: center; }
+        .stat .num { font-size: 1.3rem; font-weight: 700; }
+        .stat .lbl { font-size: 0.6rem; color: var(--muted); }
+        .stat.danger .num { color: var(--danger); }
+        .stat.safe .num { color: var(--safe); }
+        .engine-badge { font-size: 0.65rem; color: var(--spark); text-align: center; margin-bottom: 1rem; padding: 0.4rem; border: 1px solid var(--border); border-radius: 6px; }
+        .recent-item { padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.7rem; }
+        .tag { font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.35rem; border-radius: 4px; }
+        .tag.bad { background: rgba(239,68,68,0.2); color: var(--danger); }
+        .tag.ok { background: rgba(34,197,94,0.2); color: var(--safe); }
+
+        .footer {
+            flex-shrink: 0;
+            text-align: center; padding: 0.5rem; font-size: 0.65rem; color: var(--muted); border-top: 1px solid var(--border); }
+
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-bg.open { display: flex; }
+        .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-width: 680px; width: 100%; max-height: 85vh; overflow-y: auto; }
+        .modal-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-head h2 { font-size: 1rem; }
+        .modal-body { padding: 1.25rem; font-size: 0.85rem; line-height: 1.6; color: var(--muted); }
+        .modal-body h3 { color: var(--text); font-size: 0.9rem; margin: 1rem 0 0.4rem; }
+        .modal-body h3:first-child { margin-top: 0; }
+        .modal-body ul { padding-left: 1.2rem; }
+        .modal-body li { margin: 0.25rem 0; }
+        .modal-body .team { color: var(--text); }
+
+        .copy-block {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.75rem;
+            margin: 0.4rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .copy-block code { color: var(--text); word-break: break-all; }
+        .copy-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+
+        .result-box {
+            margin: 0.75rem 0;
+            padding: 1rem;
+            border-radius: 10px;
+            border: 2px solid;
+        }
+        .result-box.safe-box {
+            border-color: var(--safe);
+            background: rgba(34,197,94,0.08);
+        }
+        .result-box.danger-box {
+            border-color: var(--danger);
+            background: rgba(239,68,68,0.08);
+        }
+        .result-box h3 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+        .result-box.safe-box h3 { color: var(--safe); }
+        .result-box.danger-box h3 { color: var(--danger); }
+        .reason-list { list-style: none; padding: 0; margin: 0.5rem 0; }
+        .reason-list li {
+            padding: 0.5rem 0.6rem;
+            margin: 0.35rem 0;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            border-left: 3px solid;
+        }
+        .reason-list li.passed { background: rgba(34,197,94,0.1); border-color: var(--safe); }
+        .reason-list li.blocked { background: rgba(239,68,68,0.1); border-color: var(--danger); }
+        .reason-list li.skipped { background: rgba(139,156,184,0.1); border-color: var(--muted); }
+        .reason-list .layer { font-weight: 700; font-size: 0.75rem; }
+        .llm-response-text { font-size: 1rem; line-height: 1.6; color: var(--text); margin-top: 0.5rem; }
+
+        @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <h1>Prompt Injection Security Chatbot</h1>
+            <p>Mirror Detector + P2SQL + Small LLM (flan-t5-small) + Spark</p>
+        </div>
+        <div class="header-btns">
+            <button class="btn primary" id="guideBtn">Quick Start Guide</button>
+            <button class="btn" id="projectBtn">Project Details</button>
+            <a href="/dashboard" class="btn">Research Dashboard</a>
+        </div>
+    </header>
+
+    <div class="layout">
+        <div class="chat-panel">
+            <div class="messages" id="messages">
+                <div class="welcome" id="welcome">
+                    <h2>Test Prompt Injection Attacks</h2>
+                    <p>Safe questions are answered by a <strong>small LLM</strong> (flan-t5-small).<br/>Attack prompts are blocked with a security report.</p>
+                    <div class="examples" id="examples"></div>
+                </div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="promptInput" placeholder="Type a question or try an attack example..." />
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+        <aside class="sidebar">
+            <h3>Statistics</h3>
+            <div class="engine-badge" id="engineBadge">Loading...</div>
+            <div class="stat-grid">
+                <div class="stat"><div class="num" id="totalQueries">0</div><div class="lbl">Total</div></div>
+                <div class="stat danger"><div class="num" id="maliciousCount">0</div><div class="lbl">Blocked</div></div>
+                <div class="stat safe"><div class="num" id="safeCount">0</div><div class="lbl">Safe</div></div>
+                <div class="stat"><div class="num" id="blockRate">0%</div><div class="lbl">Block Rate</div></div>
+            </div>
+            <h3>Recent</h3>
+            <div id="recentList"></div>
+        </aside>
+    </div>
+
+    <div class="footer">
+        L1F22BSCS0122 Nauman Irshad Ali Shah | L1F22BSCS0929 Saadia Lucman |
+        L1F22BSCS0939 Syeda Aliza Wajid | L1F22BSCS0909 Hira Noor
+    </div>
+
+    <div class="modal-bg" id="guideModal">
+        <div class="modal" style="max-width:680px">
+            <div class="modal-head">
+                <h2>Quick Start Guide — Copy & Paste</h2>
+                <button class="btn" id="guideClose">Close</button>
+            </div>
+            <div class="modal-body" id="guideContent">Loading...</div>
+        </div>
+    </div>
+
+    <div class="modal-bg" id="projectModal">
+        <div class="modal">
+            <div class="modal-head">
+                <h2>Project Details</h2>
+                <button class="btn" id="modalClose">Close</button>
+            </div>
+            <div class="modal-body" id="projectContent">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        const STEP_MS = 1200;
+        const messagesEl = document.getElementById('messages');
+        const inputEl = document.getElementById('promptInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const welcomeEl = document.getElementById('welcome');
+
+        document.getElementById('projectBtn').onclick = async () => {
+            document.getElementById('projectModal').classList.add('open');
+            try {
+                const p = await (await fetch('/api/project')).json();
+                document.getElementById('projectContent').innerHTML = `
+                    <h3>About</h3><p>${p.about}</p>
+                    <h3>Team</h3>
+                    ${p.team.map(t => `<div class="team">${t.id} — ${t.name}</div>`).join('')}
+                    <h3>Attacks We Demo</h3><ul>${p.attacks.map(a => `<li>${a}</li>`).join('')}</ul>
+                    <h3>Defenses</h3><ul>${p.defenses.map(d => `<li>${d}</li>`).join('')}</ul>
+                    <h3>How the Chatbot Works</h3><ul>${p.chatbot_pipeline.map(s => `<li>${s}</li>`).join('')}</ul>
+                    <h3>How to Run</h3><ul>${p.how_to_run.map(s => `<li><code>${s}</code></li>`).join('')}</ul>`;
+            } catch (e) {
+                document.getElementById('projectContent').innerHTML = '<p>Start server: python run_chatbot.py</p>';
+            }
+        };
+        document.getElementById('modalClose').onclick = () => document.getElementById('projectModal').classList.remove('open');
+        document.getElementById('projectModal').onclick = e => { if (e.target.id === 'projectModal') document.getElementById('projectModal').classList.remove('open'); };
+
+        function copyText(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const old = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = old, 1500);
+            });
+        }
+
+        document.getElementById('guideBtn').onclick = async () => {
+            document.getElementById('guideModal').classList.add('open');
+            try {
+                const g = await (await fetch('/api/guide')).json();
+                document.getElementById('guideContent').innerHTML = `<p style="margin-bottom:1rem">${g.title}</p>` +
+                    g.sections.map(sec => `
+                        <h3>${sec.name}</h3>
+                        ${sec.commands.map(cmd => `
+                            <div class="copy-block">
+                                <code>${cmd}</code>
+                                <button class="copy-btn" onclick="copyText(${JSON.stringify(cmd)}, this)">Copy</button>
+                            </div>`).join('')}
+                    `).join('');
+            } catch (e) {
+                document.getElementById('guideContent').innerHTML = '<p>Start server: python run_chatbot.py</p>';
+            }
+        };
+        document.getElementById('guideClose').onclick = () => document.getElementById('guideModal').classList.remove('open');
+        document.getElementById('guideModal').onclick = e => { if (e.target.id === 'guideModal') document.getElementById('guideModal').classList.remove('open'); };
+
+        function getBlockReasons(data) {
+            const s = data.security_score || {};
+            let reasons = s.block_reasons || data.block_reasons || [];
+            if (reasons.length) return reasons;
+
+            const d = data.details || {};
+            const built = [];
+
+            if (d.malicious) {
+                built.push({
+                    layer: 'Mirror Detector',
+                    status: 'BLOCKED',
+                    reason: `Prompt injection detected — confidence ${d.confidence || 'N/A'}, risk ${d.risk_level || 'HIGH'}`,
+                });
+            } else {
+                built.push({
+                    layer: 'Mirror Detector',
+                    status: 'PASSED',
+                    reason: 'No prompt injection pattern found',
+                });
+            }
+
+            if (d.sql_status === 'blocked') {
+                built.push({
+                    layer: 'P2SQL Check',
+                    status: 'BLOCKED',
+                    reason: (d.threats || []).find(t => t.includes('SQL') || t.includes('SELECT') || t.includes('Blocked'))
+                        || `Dangerous SQL blocked: ${d.simulated_sql || 'N/A'}`,
+                });
+            } else if (d.simulated_sql && !d.simulated_sql.startsWith('--')) {
+                built.push({
+                    layer: 'P2SQL Check',
+                    status: 'PASSED',
+                    reason: `SQL is safe: ${d.simulated_sql}`,
+                });
+            } else {
+                built.push({
+                    layer: 'P2SQL Check',
+                    status: 'SKIPPED',
+                    reason: 'General chat — SQL check not required',
+                });
+            }
+
+            if (d.keyword_hits && d.keyword_hits.length) {
+                built.push({
+                    layer: 'Keyword Scanner',
+                    status: 'BLOCKED',
+                    reason: `Suspicious keywords: ${d.keyword_hits.join(', ')}`,
+                });
+            } else {
+                built.push({
+                    layer: 'Keyword Scanner',
+                    status: 'PASSED',
+                    reason: 'No suspicious keywords',
+                });
+            }
+
+            if (built.some(r => r.status === 'BLOCKED')) return built;
+
+            const threats = d.threats || s.threats_detected || s.why_blocked || [];
+            if (threats.length) {
+                return threats.map((t, i) => ({
+                    layer: `Security Layer ${i + 1}`,
+                    status: 'BLOCKED',
+                    reason: t,
+                }));
+            }
+
+            return [{
+                layer: 'Security System',
+                status: 'BLOCKED',
+                reason: data.message || 'Prompt blocked — failed security checks',
+            }];
+        }
+
+        function renderBlockReasons(reasons) {
+            if (!reasons || !reasons.length) {
+                return '<p style="color:var(--muted);font-size:0.8rem">No detailed reason available. Restart server: python run_chatbot.py</p>';
+            }
+            const blocked = reasons.filter(r => r.status === 'BLOCKED');
+            let html = '';
+            if (blocked.length) {
+                html += `<div style="background:rgba(239,68,68,0.15);padding:0.6rem;border-radius:6px;margin-bottom:0.5rem;font-size:0.85rem;color:var(--danger)">
+                    <strong>Main reason:</strong> ${blocked[0].reason}
+                </div>`;
+            }
+            html += `<ul class="reason-list">` + reasons.map(r => `
+                <li class="${r.status === 'BLOCKED' ? 'blocked' : r.status === 'SKIPPED' ? 'skipped' : 'passed'}">
+                    <div class="layer">${r.layer}: ${r.status}</div>
+                    <div>${r.reason}</div>
+                </li>`).join('') + `</ul>`;
+            return html;
+        }
+
+        async function loadExamples() {
+            const examples = await (await fetch('/api/examples')).json();
+            const el = document.getElementById('examples');
+            el.innerHTML = examples.map(ex => `
+                <button class="example-btn ${ex.label === 'Attack' ? 'attack' : ''}" data-prompt="${ex.prompt.replace(/"/g,'&quot;')}">
+                    ${ex.label}: ${ex.prompt.slice(0, 40)}...
+                </button>`).join('');
+            el.querySelectorAll('.example-btn').forEach(b => b.onclick = () => { inputEl.value = b.dataset.prompt; sendPrompt(); });
+        }
+
+        async function loadStats() {
+            try {
+                const s = await (await fetch('/api/stats')).json();
+                document.getElementById('totalQueries').textContent = s.total_queries;
+                document.getElementById('maliciousCount').textContent = s.malicious_count;
+                document.getElementById('safeCount').textContent = s.safe_count;
+                document.getElementById('blockRate').textContent = s.block_rate;
+                document.getElementById('engineBadge').textContent = s.engine;
+                const recentEl = document.getElementById('recentList');
+                if (!s.recent_queries.length) { recentEl.innerHTML = '<p style="color:var(--muted);font-size:0.7rem">No queries yet</p>'; return; }
+                recentEl.innerHTML = s.recent_queries.map(q => `
+                    <div class="recent-item">
+                        <div>${q.prompt}</div>
+                        <span class="tag ${q.malicious ? 'bad' : 'ok'}">${q.malicious ? 'BLOCKED' : 'SAFE'}</span>
+                    </div>`).join('');
+            } catch (e) {
+                document.getElementById('engineBadge').textContent = 'Run: python run_chatbot.py';
+            }
+        }
+
+        function scrollMessagesToBottom() {
+            requestAnimationFrame(() => {
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            });
+        }
+
+        function addMessage(role, html) {
+            if (welcomeEl) welcomeEl.style.display = 'none';
+            const div = document.createElement('div');
+            div.className = `msg ${role}`;
+            div.innerHTML = `<div class="bubble">${html}</div>`;
+            messagesEl.appendChild(div);
+            scrollMessagesToBottom();
+            return div;
+        }
+
+        function showPipelineAnimation(steps) {
+            const container = document.createElement('div');
+            container.className = 'msg bot';
+            const stepsHtml = steps.map((s, i) => `
+                <div class="pipe-step" data-i="${i}">
+                    <div class="pipe-name">${s.name}</div>
+                    <div class="pipe-detail">${s.detail || 'Running...'}</div>
+                </div>`).join('');
+            container.innerHTML = `<div class="bubble"><div class="pipeline-box">
+                <h4>Security Check Running...</h4>${stepsHtml}
+            </div></div>`;
+            messagesEl.appendChild(container);
+            scrollMessagesToBottom();
+
+            const pipeSteps = container.querySelectorAll('.pipe-step');
+            let i = 0;
+            return new Promise(resolve => {
+                function next() {
+                    if (i > 0) {
+                        pipeSteps[i-1].classList.remove('active');
+                        pipeSteps[i-1].classList.add('done', steps[i-1].status || 'success');
+                    }
+                    if (i < pipeSteps.length) {
+                        pipeSteps[i].classList.add('active');
+                        i++;
+                        setTimeout(next, STEP_MS);
+                    } else {
+                        setTimeout(() => resolve(container), 400);
+                    }
+                }
+                next();
+            });
+        }
+
+        function renderPipeline(steps) {
+            return `<div class="pipeline-box"><h4>Security Pipeline</h4>` +
+                steps.map(s => `<div class="pipe-step done ${s.status}">
+                    <div class="pipe-name">${s.name}</div>
+                    <div class="pipe-detail">${s.detail || ''}</div>
+                </div>`).join('') + `</div>`;
+        }
+
+        async function sendPrompt() {
+            const prompt = inputEl.value.trim();
+            if (!prompt) return;
+            inputEl.value = '';
+            sendBtn.disabled = true;
+            addMessage('user', prompt);
+
+            const previewSteps = [
+                { name: 'Step 1: User Prompt', detail: prompt.slice(0, 60), status: 'success' },
+                { name: 'Step 2: Mirror Detector', detail: 'Checking for prompt injection...', status: 'success' },
+                { name: 'Step 3: P2SQL Check', detail: 'Checking SQL safety...', status: 'success' },
+                { name: 'Step 4: Spark Log', detail: 'Saving to analytics...', status: 'success' },
+                { name: 'Step 5: Verdict', detail: 'Safe or blocked...', status: 'success' },
+                { name: 'Step 6: Small LLM', detail: 'Generating answer for safe query...', status: 'success' },
+            ];
+
+            const fetchP = fetch('/api/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt }),
+            }).then(r => r.json());
+
+            const animEl = await showPipelineAnimation(previewSteps);
+
+            try {
+                const data = await fetchP;
+                animEl.remove();
+
+                let body = renderPipeline(data.pipeline_steps || []);
+
+                if (data.verdict === 'SAFE' && data.llm_answer) {
+                    body += `<div class="result-box safe-box">
+                        <h3>SAFE — ANSWERED</h3>
+                        <p style="font-size:0.8rem;color:var(--muted)">All security checks passed. Response from small LLM:</p>
+                        ${renderBlockReasons(getBlockReasons(data))}
+                        <div class="llm-response-text"><strong>LLM Response:</strong><br/>${data.llm_answer}</div>
+                        <div style="font-size:0.75rem;color:var(--muted);margin-top:0.5rem">Model: ${data.llm_model}</div>
+                    </div>`;
+                } else if (data.verdict === 'MALICIOUS' || data.color === 'danger' || data.details?.blocked) {
+                    const s = data.security_score || {};
+                    const reasons = getBlockReasons(data);
+                    body += `<div class="result-box danger-box">
+                        <h3>MALICIOUS — BLOCKED</h3>
+                        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.5rem"><strong>Why rejected:</strong></p>
+                        ${renderBlockReasons(reasons)}
+                        ${s.threat_score ? `<p style="margin-top:0.5rem">Threat Score: <strong>${s.threat_score}/100</strong></p>
+                        <div class="score-bar"><div class="score-bar-fill" style="width:${s.threat_score}%"></div></div>` : ''}
+                        <p style="color:var(--danger);font-size:0.85rem;margin-top:0.75rem">LLM answer was NOT sent — prompt blocked for safety.</p>
+                    </div>`;
+                } else {
+                    body += `<div class="verdict ${data.color === 'danger' ? 'danger' : 'safe'}">${
+                        data.verdict === 'MALICIOUS' ? 'MALICIOUS — BLOCKED' : 'SAFE — ANSWERED'}</div>`;
+                }
+
+                if (data.big_data) {
+                    body += `<p style="font-size:0.7rem;color:var(--muted);margin-top:0.5rem">${data.big_data.processed_by} | Query ID: ${data.big_data.query_id}</p>`;
+                }
+                addMessage('bot', body);
+                loadStats();
+            } catch (e) {
+                animEl.remove();
+                addMessage('bot', 'Error: Start the server with <code>python run_chatbot.py</code>');
+            }
+            sendBtn.disabled = false;
+            inputEl.focus();
+        }
+
+        sendBtn.onclick = sendPrompt;
+        inputEl.onkeydown = e => { if (e.key === 'Enter') sendPrompt(); };
+        loadExamples();
+        loadStats();
+    </script>
+</body>
+</html>

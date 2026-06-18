@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.key
+
+# Spark / Hadoop temp (local only)
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Large model cache (users download on first run)
+.cache/
+models/
+
+# Logs (optional - keep structure)
+# data/query_logs/*.jsonl
+
+# Word temp
+~$*.docx
