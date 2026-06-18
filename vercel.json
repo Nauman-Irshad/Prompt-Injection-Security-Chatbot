@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pip install -r requirements-vercel.txt",
+  "functions": {
+    "app.py": {
+      "memory": 1024,
+      "maxDuration": 30,
+      "excludeFiles": "{attacks/**,data/vector_db/**,scripts/**,setup/**,*.docx,MANUAL*,PROJECT_*}"
+    }
+  }
+}

@@ -1,7 +1,5 @@
 """Apache Spark analytics helpers for query logging."""
 
-from pyspark.sql.functions import col
-
 from utils.spark_session import create_spark_session, setup_spark_env
 
 
@@ -11,6 +9,11 @@ def aggregate_with_spark(records: list) -> dict | None:
     Returns analytics dict or None if Spark fails.
     """
     if not records:
+        return None
+
+    try:
+        from pyspark.sql.functions import col
+    except ImportError:
         return None
 
     setup_spark_env()

@@ -52,6 +52,214 @@ def add_table(doc, headers, rows, header_color="4472C4"):
     return table
 
 
+def add_theory_sections(doc):
+    """Research-paper style theory — easy to read."""
+    doc.add_heading("1. Abstract", level=1)
+    doc.add_paragraph(
+        "This project studies security problems in Big Data platforms (Hadoop and Spark) "
+        "and in AI chatbots (LLM apps). We built working attack demos to show how hackers "
+        "can inject bad commands or bad prompts. Then we built a defense system that blocks "
+        "attacks and only answers safe user questions. All queries are logged using Apache Spark. "
+        "The result is a complete security chatbot that any user can run from the terminal."
+    )
+
+    doc.add_heading("2. Introduction", level=1)
+    doc.add_paragraph("Why we did this project:")
+    for item in [
+        "Hadoop and Spark store and process huge amounts of data — if hacked, damage is very big.",
+        "Many companies now add AI chatbots on top of their data — these chatbots can be tricked.",
+        "Command injection = attacker runs shell commands on the server (old but still dangerous).",
+        "Prompt injection = attacker tricks the AI with hidden instructions in text.",
+        "We combine both topics because modern Big Data systems often use AI + databases together.",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+
+    doc.add_heading("3. Problem Statement", level=1)
+    doc.add_paragraph(
+        "Big Data systems and LLM chatbots are not safe by default. Attackers can:"
+    )
+    for item in [
+        "Run system commands through Hadoop/Spark configuration (CVE-2022-25168, SPARK-50239).",
+        "Hide malicious instructions inside documents used by RAG (Retrieval Augmented Generation).",
+        "Turn normal English questions into dangerous SQL (P2SQL attack).",
+        "Chain multiple attacks together to bypass simple filters.",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+
+    doc.add_heading("4. Our Solution (What We Built)", level=1)
+    doc.add_paragraph(
+        "We built a complete lab project with three main parts:"
+    )
+    for item in [
+        "Attack demos — Python scripts that show each attack in a safe, educational way.",
+        "Defense layers — Mirror Detector, CleanBase, and UTDMF framework to catch threats.",
+        "Security chatbot — Web UI that checks every prompt, blocks attacks, and answers safe queries.",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+    doc.add_paragraph(
+        "If a prompt is SAFE → Small LLM (flan-t5-small) gives an answer. "
+        "If MALICIOUS → request is blocked and the user sees WHY it was rejected."
+    )
+
+    doc.add_heading("5. System Model / Architecture", level=1)
+    doc.add_paragraph("Our system has 4 layers (simple view):")
+    add_table(doc, ["Layer", "Name", "What It Does"], [
+        ("Layer 1", "Input", "User types prompt in chatbot OR attacker sends bad data"),
+        ("Layer 2", "Detection", "Mirror Detector + P2SQL Validator + Keyword Scanner"),
+        ("Layer 3", "Logging", "Apache Spark (PySpark) saves every query for analysis"),
+        ("Layer 4", "Response", "Small LLM answers OR block message with reasons"),
+    ], header_color="5B4B8A")
+
+    doc.add_heading("6. Attack Techniques (In Simple Points)", level=1)
+
+    doc.add_heading("6.1 Command Injection Attacks", level=2)
+    for item in [
+        "Hadoop CVE-2022-25168 — bad file names can run shell commands during untar.",
+        "Spark SPARK-50239 — bad JavaOptions in spark-submit can run commands on workers.",
+        "Target: the operating system behind Hadoop/Spark cluster.",
+        "Demo files: cve_2022_25168_demo.py, spark_50239_demo.py",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+
+    doc.add_heading("6.2 Prompt Injection Attacks", level=2)
+    for item in [
+        "RAG Poisoning — hide instructions like 'IGNORE PREVIOUS RULES' inside documents.",
+        "PIDP Attack — combine prompt trick + poisoned database passages together.",
+        "P2SQL Attack — user says 'show data and drop table' in normal English.",
+        "Combined Chain — run multiple attacks in sequence to test defenses.",
+        "Demo files: rag_poisoning.py, pidp_attack.py, p2sql_attack.py, chain_attack.py",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+
+    doc.add_heading("7. Defense Techniques (In Simple Points)", level=1)
+    for item in [
+        "Mirror Detector — machine learning (SVM) reads text and finds injection patterns.",
+        "CleanBase — checks RAG documents; finds poisoned or suspicious content groups.",
+        "P2SQL Validator — blocks SQL words like DROP, DELETE, TRUNCATE in data queries.",
+        "UTDMF Framework — puts all defenses together in one pipeline.",
+        "Keyword Scanner — fast check for words like 'ignore instructions', 'admin override'.",
+        "Spark Analytics — every query saved so we can count attacks vs safe queries.",
+    ]:
+        doc.add_paragraph(item, style="List Bullet")
+
+    doc.add_heading("8. Techniques Used (Summary Table)", level=1)
+    add_table(doc, ["Area", "Technique / Tool", "Why We Used It"], [
+        ("Attack demo", "Python scripts", "Easy to run in terminal, clear output"),
+        ("Prompt detection", "Linear SVM + n-grams", "Lightweight, no big GPU needed"),
+        ("RAG defense", "Semantic similarity (CleanBase)", "Finds hidden poison in documents"),
+        ("SQL safety", "Whitelist + keyword block", "Stops destructive database commands"),
+        ("Analytics", "PySpark local mode", "Big Data logging without full cluster"),
+        ("Safe answers", "google/flan-t5-small", "Small LLM — fast, runs on normal laptop"),
+        ("Web UI", "Flask + HTML", "Live demo for presentation"),
+    ], header_color="2E75B6")
+
+
+def add_colored_box_row(doc, boxes, colors):
+    """One row of colored flowchart boxes (side by side)."""
+    n = len(boxes)
+    table = doc.add_table(rows=1, cols=n)
+    table.style = "Table Grid"
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for i, (title, text) in enumerate(boxes):
+        cell = table.rows[0].cells[i]
+        cell.text = f"{title}\n{text}"
+        shade_cell(cell, colors[i] if i < len(colors) else "DEEBF7")
+        for p in cell.paragraphs:
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for r in p.runs:
+                r.font.size = Pt(9)
+                r.font.bold = True if title.isupper() or title.startswith("STEP") else False
+    doc.add_paragraph("")
+
+
+def add_colored_research_flowchart(doc):
+    """Research-paper style colored flowchart."""
+    doc.add_heading("9. Colored Flowchart — Complete System", level=1)
+    doc.add_paragraph(
+        "Follow the colors: GREEN = safe path, RED = blocked, BLUE = processing, "
+        "ORANGE = Spark logging, PURPLE = detection."
+    )
+
+    doc.add_heading("9.1 Main Chatbot Pipeline", level=2)
+
+    add_colored_box_row(doc, [
+        ("START", "User opens\nchatbot UI"),
+    ], ["C6EFCE"])
+
+    doc.add_paragraph("                              |", style="No Spacing")
+    doc.add_paragraph("                              v", style="No Spacing")
+
+    add_colored_box_row(doc, [
+        ("INPUT", "User Prompt\n(text message)"),
+        ("MIRROR", "Mirror Detector\n(SVM — prompt injection)"),
+        ("P2SQL", "P2SQL Check\n(SQL attacks)"),
+    ], ["BDD7EE", "D9D2E9", "D9D2E9"])
+
+    doc.add_paragraph("                              |", style="No Spacing")
+    doc.add_paragraph("                              v", style="No Spacing")
+
+    add_colored_box_row(doc, [
+        ("KEYWORDS", "Keyword Scanner\nignore / admin / drop"),
+        ("SPARK", "Apache Spark Log\nsave query to file"),
+        ("DECISION", "All checks\npassed?"),
+    ], ["D9D2E9", "FFE699", "F8CBAD"])
+
+    doc.add_paragraph("                    |                    |", style="No Spacing")
+    doc.add_paragraph("                 YES (SAFE)          NO (ATTACK)", style="No Spacing")
+    doc.add_paragraph("                    |                    |", style="No Spacing")
+    doc.add_paragraph("                    v                    v", style="No Spacing")
+
+    add_colored_box_row(doc, [
+        ("SAFE PATH", "Small LLM\nflan-t5-small"),
+        ("BLOCK PATH", "Show BLOCKED\n+ reasons"),
+    ], ["C6EFCE", "F4B084"])
+
+    doc.add_paragraph("                    |                    |", style="No Spacing")
+    doc.add_paragraph("                    v                    v", style="No Spacing")
+
+    add_colored_box_row(doc, [
+        ("END ✓", "LLM answer\nshown to user"),
+        ("END ✗", "No LLM answer\nsecurity report"),
+    ], ["A9D18E", "E06666"])
+
+    doc.add_paragraph("")
+
+    doc.add_heading("9.2 Attack & Defense Overview", level=2)
+
+    add_colored_box_row(doc, [
+        ("ATTACKER", "Sends bad\ncommand or prompt"),
+    ], ["F4B084"])
+
+    doc.add_paragraph("                              |", style="No Spacing")
+    doc.add_paragraph("              +---------------+---------------+", style="No Spacing")
+    doc.add_paragraph("              |                               |", style="No Spacing")
+    doc.add_paragraph("              v                               v", style="No Spacing")
+
+    add_colored_box_row(doc, [
+        ("COMMAND INJ", "Hadoop CVE\nSpark SPARK-50239"),
+        ("PROMPT INJ", "RAG / PIDP\nP2SQL"),
+    ], ["FF9999", "FFCC99"])
+
+    doc.add_paragraph("              |                               |", style="No Spacing")
+    doc.add_paragraph("              +---------------+---------------+", style="No Spacing")
+    doc.add_paragraph("                              |", style="No Spacing")
+    doc.add_paragraph("                              v", style="No Spacing")
+
+    add_colored_box_row(doc, [
+        ("DEFENSE", "Mirror + CleanBase\n+ UTDMF + P2SQL"),
+    ], ["B4C6E7"])
+
+    doc.add_paragraph("                              |", style="No Spacing")
+    doc.add_paragraph("                              v", style="No Spacing")
+
+    add_colored_box_row(doc, [
+        ("CHATBOT", "Block attack\nor safe answer"),
+        ("SPARK", "Log & analyze\nall queries"),
+    ], ["C6EFCE", "FFE699"])
+
+    doc.add_paragraph("")
+
+
 def add_flowchart(doc):
     """Visual flowchart using Word table cells."""
     doc.add_heading("Security Chatbot — Flowchart Diagram", level=2)
@@ -145,7 +353,7 @@ def build_manual():
         0,
     )
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    sub = doc.add_paragraph("Complete Project Manual — Tables, Flowcharts, GitHub Setup")
+    sub = doc.add_paragraph("Research Paper Style Manual — Theory, Colored Flowcharts, Tables & GitHub Setup")
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # Team
@@ -156,6 +364,12 @@ def build_manual():
         ("L1F22BSCS0939", "Syeda Aliza Wajid"),
         ("L1F22BSCS0909", "Hira Noor"),
     ])
+
+    # Research theory (paper style)
+    add_theory_sections(doc)
+    add_colored_research_flowchart(doc)
+
+    doc.add_page_break()
 
     # Tools table
     doc.add_heading("Tools & Technologies Used", level=1)
