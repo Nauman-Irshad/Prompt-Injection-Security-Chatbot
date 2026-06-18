@@ -39,12 +39,15 @@ def create_spark_session(app_name, master="local[1]"):
     Create a SparkSession with Windows-safe defaults.
     Returns None if Spark cannot start (e.g. Java 25 compatibility issues).
     """
+    try:
+        from pyspark.sql import SparkSession
+    except ImportError:
+        return None
+
     setup_spark_env()
 
     warehouse = os.path.join(tempfile.gettempdir(), "spark-warehouse")
     os.makedirs(warehouse, exist_ok=True)
-
-    from pyspark.sql import SparkSession
 
     builder = (
         SparkSession.builder.appName(app_name)

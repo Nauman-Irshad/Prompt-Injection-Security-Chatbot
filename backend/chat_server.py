@@ -40,9 +40,12 @@ def scan_prompt():
         return "", 204
     data = request.get_json(silent=True) or {}
     prompt = data.get("prompt", data.get("input", ""))
-    engine = get_engine()
-    result = engine.analyze(prompt)
-    return jsonify(result)
+    try:
+        engine = get_engine()
+        result = engine.analyze(prompt)
+        return jsonify(result)
+    except Exception as exc:
+        return jsonify({"error": str(exc), "verdict": "ERROR"}), 500
 
 
 @app.route("/api/project", methods=["GET"])

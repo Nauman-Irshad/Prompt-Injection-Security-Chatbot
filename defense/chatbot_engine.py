@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import uuid
 from datetime import datetime
 
@@ -19,8 +20,22 @@ from defense.llm_responder import get_llm_responder
 from utils.spark_analytics import aggregate_with_spark
 from utils.spark_session import create_spark_session
 
-LOG_DIR = os.path.join(PROJECT_ROOT, "data", "query_logs")
-LOG_FILE = os.path.join(LOG_DIR, "queries.jsonl")
+
+def _resolve_log_paths():
+    """Use /tmp on Vercel or when project data dir is not writable."""
+    if os.environ.get("VERCEL"):
+        log_dir = os.path.join(tempfile.gettempdir(), "query_logs")
+    else:
+        log_dir = os.path.join(PROJECT_ROOT, "data", "query_logs")
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+    except OSError:
+        log_dir = os.path.join(tempfile.gettempdir(), "query_logs")
+        os.makedirs(log_dir, exist_ok=True)
+    return log_dir, os.path.join(log_dir, "queries.jsonl")
+
+
+LOG_DIR, LOG_FILE = _resolve_log_paths()
 
 
 class ChatbotSecurityEngine:
@@ -33,9 +48,12 @@ class ChatbotSecurityEngine:
 
     def __init__(self):
         self.defense = UTDMFDefense()
-        self.spark = create_spark_session("SecurityChatbot")
-        self.spark_active = self.spark is not None
-        os.makedirs(LOG_DIR, exist_ok=True)
+        if os.environ.get("VERCEL"):
+            self.spark = None
+            self.spark_active = False
+        else:
+            self.spark = create_spark_session("SecurityChatbot")
+            self.spark_active = self.spark is not None
         self._memory_log = []
 
     def _get_spark(self):
@@ -310,8 +328,11 @@ class ChatbotSecurityEngine:
 
     def _log_query(self, record: dict):
         self._memory_log.append(record)
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record) + "\n")
+        try:
+            with open(LOG_FILE, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record) + "\n")
+        except OSError:
+            pass
         spark = self._get_spark()
         if spark:
             try:
@@ -370,17 +391,20 @@ class ChatbotSecurityEngine:
         }
 
     def _load_all_records(self) -> list:
+        records = list(self._memory_log)
         if not os.path.exists(LOG_FILE):
-            return list(self._memory_log)
-        records = []
-        with open(LOG_FILE, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        records.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
+            return records
+        try:
+            with open(LOG_FILE, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            records.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            continue
+        except OSError:
+            pass
         return records
 
 
